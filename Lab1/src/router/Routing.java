@@ -164,8 +164,37 @@ public class Routing {
             
         } else {
             
-            Log("send_local_ROUTE: hierarchical networks not supported yet\n");
+            //Log("send_local_ROUTE: hierarchical networks not supported yet\n");
             
+            DatagramPacket inROUTEpkt= make_ROUTE_packet(tab);
+            if (inROUTEpkt == null)
+                return false;
+            
+            Address net = new Address(local_address);
+            net.to_networkAddress();
+
+            RoutingTable aux = new RoutingTable();
+            aux.add_route(new RouteEntry(net,0,null,new AddressList() ));
+            
+            DatagramPacket outside = make_ROUTE_packet(aux);
+            DatagramPacket DPaux;
+
+            for(Neighbour n : neig.values()){
+                
+                DPaux =  local_address.equal_network(n.Address()) ? inROUTEpkt : outside;
+                Log(local_address.toString() +": "+ n.Address().toString()+"\n");
+                try {
+                    Log2("send_local_ROUTE 1\n");
+                     n.send_packet(ds, DPaux);
+                }
+                catch (IOException e) {
+                    Log("Error sending ROUTE: "+e+"\n");                    
+                }
+            }
+
+            win.ROUTE_snt++;
+            Log2("send_local_ROUTE ended\n");
+            return true;
             //TODO: Descobrir a diferenca e codigo
             
             // Put here the code to generate the ROUTE packets sent to
@@ -173,7 +202,7 @@ public class Routing {
             // Remeber that different ROUTEs should be sent to internal 
             //   and external routers
 
-             return false;
+            //return false;
         }
     }
     
@@ -261,7 +290,7 @@ public class Routing {
         AddressList addlAux;
         //Log("\n\nAAAA\n\n");
 
-        if(!hierarchical){
+        //if(!hierarchical){
             for( Neighbour n : neig.values() ){
 
                 //map.add_route( new RouteEntry(n.Address(), n.Dist(), n.Address(), new AddressList( n.Address() )) );
@@ -292,9 +321,7 @@ public class Routing {
                     }
                 }
             }
-        }else{
-            
-        }
+        //}else{}
         // Put here the code that implements the path vector algorithm
         // STEP 1:
         //      Implement the flat algorithm - go through all the neighbours testing each destination, 
