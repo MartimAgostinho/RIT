@@ -288,6 +288,7 @@ public class Routing {
         RouteEntry reaux = null;
 
         AddressList addlAux;
+        Address SourceAux;
         //Log("\n\nAAAA\n\n");
 
         //if(!hierarchical){
@@ -299,8 +300,8 @@ public class Routing {
                 if(n.Vec() == null){continue;}
 
                 for( Entry e : n.Vec() ){
-
-                    reaux =  map.get_RouteEntry(e.dest);
+                    
+                    reaux =  map.get_RouteEntry(e.dest);//This is okay because I will not receive dest outside of the network
                     //Log("\n\nDEBUG DEST");
                     //Log( e.dest.toString() );
 
@@ -310,8 +311,9 @@ public class Routing {
                         reaux == null || 
                         ( (Router.MAX_DISTANCE+1) > (e.dist + n.dist) && reaux.dist > (e.dist + n.dist) )   
                         ){ 
+                        
                         addlAux = new AddressList(e.path);
-                        addlAux.insert(n.Address());
+                        addlAux.insert(e.dest);
                         //Log2("\n\n\n\n\n!!!!!!!DEBUG!!!!\n\n\n\n\n");
                         
                         map.add_route( 
@@ -418,13 +420,20 @@ public class Routing {
      */
     public Address next_Hop(Address dest) {
         //Log("Method Routing.next_Hop not implemented yet");
-        
+        if( tab == null )
+            return null;
+
+        Address aux = dest;
+        if( !local_address.equal_network(dest) ){
+            aux = new Address(dest);
+            aux.to_networkAddress();
+        }
+        return tab.nextHop(aux.toString());
+
         // Put here the code that consult the Routing table and returns the next
         //    hop, or null if no path is known to the destination
         //TODO Se der Pau ver se destino existe
-        return 
-            tab == null && tab.get_RouteEntry(dest) != null ?
-                null : tab.nextHop( dest.toString() );
+
     }
     
     /**
