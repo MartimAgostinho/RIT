@@ -195,7 +195,6 @@ public class Routing {
             win.ROUTE_snt++;
             Log2("send_local_ROUTE ended\n");
             return true;
-            //TODO: Descobrir a diferenca e codigo
             
             // Put here the code to generate the ROUTE packets sent to
             //   routers outside the area
@@ -311,9 +310,14 @@ public class Routing {
                         reaux == null || 
                         ( (Router.MAX_DISTANCE+1) > (e.dist + n.dist) && reaux.dist > (e.dist + n.dist) )   
                         ){ 
+
+                        SourceAux = new Address(n.Address());
+                        if( !local_address.equal_network(SourceAux) ){ 
+                            SourceAux.to_networkAddress();
+                        }
                         
                         addlAux = new AddressList(e.path);
-                        addlAux.insert(e.dest);
+                        addlAux.insert(SourceAux);
                         //Log2("\n\n\n\n\n!!!!!!!DEBUG!!!!\n\n\n\n\n");
                         
                         map.add_route( 
@@ -420,6 +424,7 @@ public class Routing {
      */
     public Address next_Hop(Address dest) {
         //Log("Method Routing.next_Hop not implemented yet");
+
         if( tab == null )
             return null;
 
@@ -432,7 +437,6 @@ public class Routing {
 
         // Put here the code that consult the Routing table and returns the next
         //    hop, or null if no path is known to the destination
-        //TODO Se der Pau ver se destino existe
 
     }
     
