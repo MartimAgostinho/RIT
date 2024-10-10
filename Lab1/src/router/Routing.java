@@ -7,8 +7,8 @@
  * Routing_process objects, and handles DATA packets
  *
  * @author Luis Bernardo
- * @author student 1 name and number
- * @author student 2 name and number
+ * @author Marcos Romão | 63753
+ * @author Martim Agostinho | 70392
  */
 package router;
 
@@ -163,19 +163,16 @@ public class Routing {
             return true;
             
         } else {
-            
-            //Log("send_local_ROUTE: hierarchical networks not supported yet\n");
-            //TODO add all net address's
             DatagramPacket inROUTEpkt= make_ROUTE_packet(tab);
             if (inROUTEpkt == null)
                 return false;
 
-                  RoutingTable aux = new RoutingTable();
+            RoutingTable aux = new RoutingTable();
             
             for( Entry e : tab.get_Entry_vector()){
                 if( e.dest.is_network() )
                     aux.add_route(
-                        new RouteEntry(e.dest,e.dist, local_address/*TODO idk what to put here */, e.path)
+                        new RouteEntry(e.dest,e.dist, local_address, e.path)
                     );
             }
 
@@ -202,13 +199,6 @@ public class Routing {
             win.ROUTE_snt++;
             Log2("send_local_ROUTE ended\n");
             return true;
-            
-            // Put here the code to generate the ROUTE packets sent to
-            //   routers outside the area
-            // Remeber that different ROUTEs should be sent to internal 
-            //   and external routers
-
-            //return false;
         }
     }
     
@@ -224,7 +214,6 @@ public class Routing {
      */
     public boolean process_ROUTE(Address sender, DatagramPacket dp, 
             String ip, DataInputStream dis) {
-        //Log("Packet ROUTE not supported yet\n");
         try {
             Log("PKT_ROUTE");
             String aux;
@@ -258,13 +247,9 @@ public class Routing {
                 Log("ROUTE packet loop back - must not happen\n");
                 return false;
             }
-
-            //Log("ROUTE messages decoded but not processed yet\n");
-             
+     
             orig.update_vec(data, TTL);
-
-            // Put here the code to store the incoming ROUTE messages
-            
+          
             return true;
         } catch(IOException e) {
             Log("\nERROR - Packet too short\n");
@@ -296,65 +281,36 @@ public class Routing {
         AddressList addlAux;
         Address SourceAux;
         Address destAux;
-        //Log("\n\nAAAA\n\n");
 
-        //if(!hierarchical){
-            for( Neighbour n : neig.values() ){
+        for( Neighbour n : neig.values() ){
 
-                //map.add_route( new RouteEntry(n.Address(), n.Dist(), n.Address(), new AddressList( n.Address() )) );
-                //Log("\n\nNeig\n\n");
+            if(n.Vec() == null){continue;}
 
-                if(n.Vec() == null){continue;}
-
-                for( Entry e : n.Vec() ){
+            for( Entry e : n.Vec() ){
                     
-                    destAux = e.dest;
+                destAux = e.dest;
 
-                    if( e.dest.is_network() && e.dest.equal_network(local_address) )
-                        continue;
+                if( e.dest.is_network() && e.dest.equal_network(local_address) )
+                    continue;
                     
+                reaux =  map.get_RouteEntry(destAux);//This is okay because I will not receive dest outside of the network
+                                         
+                if( reaux == null || 
+                ( (Router.MAX_DISTANCE+1) > (e.dist + n.dist) && reaux.dist > (e.dist + n.dist) )   
+                ){ 
+                    SourceAux = new Address(n.Address());
+                    if( !local_address.equal_network(SourceAux) )
+                        SourceAux.to_networkAddress();
                     
-                    reaux =  map.get_RouteEntry(destAux);//This is okay because I will not receive dest outside of the network
-                    
-                    //Log("\n\nDEBUG DEST");
-                    //Log( e.dest.toString() );
-
-                    //if( reaux != null && reaux.dest.equals(local_address) ){continue;}
-                                        
-                    if(
-                        reaux == null || 
-                        ( (Router.MAX_DISTANCE+1) > (e.dist + n.dist) && reaux.dist > (e.dist + n.dist) )   
-                        ){ 
-
-                        SourceAux = new Address(n.Address());
-                        if( !local_address.equal_network(SourceAux) ){ 
-                            SourceAux.to_networkAddress();
-                        }
+                    addlAux = new AddressList(e.path);
+                    addlAux.insert(SourceAux);
                         
-                        addlAux = new AddressList(e.path);
-                        addlAux.insert(SourceAux);
-                        //Log2("\n\n\n\n\n!!!!!!!DEBUG!!!!\n\n\n\n\n");
-                        
-                        map.add_route( 
-                            new RouteEntry(e.dest, e.dist + n.dist,n.Address() , addlAux ) 
-                        );
-                        
-                    }
+                    map.add_route( 
+                        new RouteEntry(e.dest, e.dist + n.dist,n.Address() , addlAux ) 
+                    );
                 }
             }
-        //}else{}
-        // Put here the code that implements the path vector algorithm
-        // STEP 1:
-        //      Implement the flat algorithm - go through all the neighbours testing each destination, 
-        //          adding them the distance is shorter or the destination is new. Ignore distances
-        //          above Router.MAX_DISTANCE.
-
-        //TODO:
-        // STEP 2:
-        //      Implement the hierarchical algorithm; this second step is more
-        //          complex - requires using network addresses in the destination and
-        //          path fields of the RouteEntry elements outside the local network
-
+        }
         
         // Update the routing table using map contents
         tab= map;
