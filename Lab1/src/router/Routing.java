@@ -165,17 +165,24 @@ public class Routing {
         } else {
             
             //Log("send_local_ROUTE: hierarchical networks not supported yet\n");
-            
+            //TODO add all net address's
             DatagramPacket inROUTEpkt= make_ROUTE_packet(tab);
             if (inROUTEpkt == null)
                 return false;
+
+                  RoutingTable aux = new RoutingTable();
             
+            for( Entry e : tab.get_Entry_vector()){
+                if( e.dest.is_network() )
+                    aux.add_route(
+                        new RouteEntry(e.dest,e.dist, local_address/*TODO idk what to put here */, e.path)
+                    );
+            }
+
             Address net = new Address(local_address);
             net.to_networkAddress();
-
-            RoutingTable aux = new RoutingTable();
             aux.add_route(new RouteEntry(net,0,null,new AddressList() ));
-            
+
             DatagramPacket outside = make_ROUTE_packet(aux);
             DatagramPacket DPaux;
 
@@ -288,6 +295,7 @@ public class Routing {
 
         AddressList addlAux;
         Address SourceAux;
+        Address destAux;
         //Log("\n\nAAAA\n\n");
 
         //if(!hierarchical){
@@ -300,12 +308,19 @@ public class Routing {
 
                 for( Entry e : n.Vec() ){
                     
-                    reaux =  map.get_RouteEntry(e.dest);//This is okay because I will not receive dest outside of the network
+                    destAux = e.dest;
+
+                    if( e.dest.is_network() && e.dest.equal_network(local_address) )
+                        continue;
+                    
+                    
+                    reaux =  map.get_RouteEntry(destAux);//This is okay because I will not receive dest outside of the network
+                    
                     //Log("\n\nDEBUG DEST");
                     //Log( e.dest.toString() );
 
                     //if( reaux != null && reaux.dest.equals(local_address) ){continue;}
-
+                                        
                     if(
                         reaux == null || 
                         ( (Router.MAX_DISTANCE+1) > (e.dist + n.dist) && reaux.dist > (e.dist + n.dist) )   
