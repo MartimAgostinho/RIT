@@ -96,7 +96,7 @@ public class Router extends javax.swing.JFrame {
         jScrollPane3 = new javax.swing.JScrollPane();
         logText = new javax.swing.JTextArea();
 
-        setTitle("Router RIT by 70392 and ?????");
+        setTitle("Router RIT by 70392 and 63753");
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 exitForm(evt);
