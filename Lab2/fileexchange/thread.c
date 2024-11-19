@@ -227,18 +227,30 @@ void *file_download_thread (void *ptr)
 	buf[SND_BUFLEN]= '\0';
 
 	// TASK 5:
-	Log("Please complete function thread.file_download_thread (TASK 5)\n");
-	STOP_THREAD(pt);  // REMOVE THIS LINE when you start working on TASK 5!
+	//Log("Please complete function thread.file_download_thread (TASK 5)\n");
+	//STOP_THREAD(pt);  // REMOVE THIS LINE when you start working on TASK 5!
 
 	// Create a new temporary socket TCP IPv6 to receive the file
 	// pt->s = ....
+	  /* Create socket */
+  	pt->s = socket(AF_INET6, SOCK_STREAM, 0);
+  	if (pt->s < 0)
+    {
+      perror ("opening stream socket");
+      exit (1);
+    }
+	
+	server.sin6_family = AF_INET6;                
+	server.sin6_port = htons(pt->port);           
+	server.sin6_addr = pt->ip;                    
 
-	// Connect the socket to (pt->ip : pt->port)
-	// if (connect(pt->s, ..., ...) < 0) {
-	// 	  perror("RCV>error connecting the TCP socket to receive the file");
-	// 	  fprintf(stderr, "%sconnection failed\n", pt->name_str);
-	// 	  STOP_THREAD(pt);
-	// }
+	//struct sockaddr sok = 
+	//Connect the socket to (pt->ip : pt->port)
+	if (connect(pt->s, (struct sockaddr *)&server, sizeof(server) ) < 0) {
+		  perror("RCV>error connecting the TCP socket to receive the file");
+		  fprintf(stderr, "%sconnection failed\n", pt->name_str);
+		  STOP_THREAD(pt);
+	}
 
 	// Set timeout for reading
 	// ...
