@@ -69,7 +69,6 @@ void on_buttonSave_clicked (GtkButton *button, gpointer user_data);
 // Handle the reception of a Query packet
 void handle_Query(char *buf, int buflen, gboolean from_IPv6, struct in6_addr *ip, u_short port);
 // Handle the reception of an Hit packet
-// First to be implemented
 void handle_Hit(char *buf, int buflen, struct in6_addr *ip, u_short port);
 
 // Close everything
