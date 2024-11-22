@@ -484,6 +484,8 @@ void close_sockTCP(void) {
 
 // Create IPv4 UDP multicast socket, configure it, and register its callback
 gboolean init_socket_udp4(u_short port_multicast, const char *addr_multicast) {
+	char loop = 1;
+	static const int id_ipv4 = 4;
 	// TASK 3
 	//		Complete this function to initialize the multicast udp socket "sockUDP4", used to receive
 	//			the QUERY messages
@@ -497,8 +499,14 @@ gboolean init_socket_udp4(u_short port_multicast, const char *addr_multicast) {
 	//
 	//	Suggestion:
 	//	Read the tutorial (Introduction to the development of applications in Gnome 3):
-	//	- in sections 2.1.1, 2.1.3, 2.1.4.1, 2.1.4.3-2.1.4.5, 3.6.2 for a description of the socket API
-	//	- in sections 2.2.2.5 for a description of the interaction with the GUI
+	//	- in sections 2.1.1,
+					//2.1.3,
+				    //2.1.4.1,
+					//2.1.4.3,
+					//2.1.4.4,
+					//2.1.4.5,
+					//2.2.2.5 for a description of the socket API
+	//	- in sections 3.6.2 for a description of the interaction with the GUI
 	//  - in section 3.1 with an example with some similarities
 	//
 	//  You can also read the function the initializes the IPv6 socket ...
@@ -520,29 +528,45 @@ gboolean init_socket_udp4(u_short port_multicast, const char *addr_multicast) {
 	if (!translate_ipv4_to_ipv6(addr_multicast,&addr_MCast4.sin6_addr))
 		return FALSE;
 
-	Log("callbacks.c - init_socket_udp4 not implemented yet (Task 3)\n");
+	// Log("callbacks.c - init_socket_udp4 not implemented yet (Task 3)\n");
 
 	// Create the IPV4 UDP socket -don't forget to share the port
-	// ...
-
+	sockUDP4 = init_socket_ipv4(SOCK_DGRAM,port_multicast, TRUE);
+	fprintf(stderr, "UDP4 = %d\n", sockUDP4);
+	if(sockUDP4 < 0) {
+		Log("Failed to open an IPv4 UDP socket.\n");
+		return FALSE;
+	}
 
 	// Join the group
-	// ...
+	if(setsockopt(sockUDP4, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			(char * ) &imr_MCast4, sizeof(imr_MCast4)) == -1) {
+		perror("Failed association to IPv4 multicast address");
+		Log("Failed to associate socket to IPv4 multicast group");
+	}
 	str_addr_MCast4 = addr_multicast; // Memorizes it is associated to a group
 
 	// Configure the socket to receive an echo of the multicast packets sent by this application
-	// ...
+	setsockopt(sockUDP4, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 
 	// Limit the propagation of the multicast message to the local network
-	// ...
+	u_char ttl = 1;
+	if(setsockopt(sockUDP4, IPPROTO_IP, IP_MULTICAST_TTL, (char * ) &ttl, sizeof(ttl)) < 0) {
+		perror("Failed to set TTL on IP_MULTICAST.\n");
+	}
 
 	// Regist the socket in the main loop of Gtk+
-	// ...
+	if (!put_socket_in_mainloop(sockUDP4, (void *)&id_ipv4, &chanUDP4_id, &chanUDP4, G_IO_IN,
+				callback_UDPMulticast_data)) {
+			Log("Failed registration of UDPv4 socket at Gnome\n");
+			close_sockUDP();
+			return FALSE;
+		}
 	//      Use the callback function: callback_UDPMulticast_data
 
-	//active4 = TRUE;
-	//return TRUE;
-	return FALSE;  // REMOVE THIS LINE when the task 3 is done!
+	active4 = TRUE;
+	return TRUE;
+	//return FALSE;  // REMOVE THIS LINE when the task 3 is done!
 }
 
 
@@ -565,7 +589,7 @@ gboolean init_socket_udp6(u_short port_multicast, const char *addr_multicast) {
 			sizeof(addr_MCast6.sin6_addr));
 	imr_MCast6.ipv6mr_interface = 0;
 
-	// Create the IPV4 UDP socket
+	// Create the IPV6 UDP socket
 	sockUDP6 = init_socket_ipv6(SOCK_DGRAM, port_multicast, TRUE);
 	fprintf(stderr, "UDP6 = %d\n", sockUDP6);
 	if (sockUDP6 < 0) {

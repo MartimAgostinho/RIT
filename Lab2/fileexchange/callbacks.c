@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <time.h>
 #include <memory.h>
+#include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "file.h"
@@ -36,6 +37,12 @@
 \**********************/
 
 gboolean active = FALSE; 	// TRUE if server is active
+
+gboolean waitingForHIT = FALSE;
+
+uint32_t lasthit;
+
+guint t_id;
 
 // Directory pathname to write output files
 char *out_dir= NULL;
@@ -184,6 +191,7 @@ void handle_Hit(char *buf, int buflen, struct in6_addr *ip, u_short port) {
 	unsigned short sTCPport;
 	struct in6_addr srvIP;
 
+
 	if (!read_hit_message(buf, buflen, &seq, &fname, &flen, &fhash, &sTCPport, &srvIP)) {
 		Log("Invalid Hit packet\n");
 		return ;
@@ -191,9 +199,20 @@ void handle_Hit(char *buf, int buflen, struct in6_addr *ip, u_short port) {
 
 	sprintf(tmp_buf, "Received Hit '%s' (IP= %s; port= %hu; Len=%llu; Hash=%u)\n", fname,
 			addr_ipv6(&srvIP), sTCPport, flen, fhash);
+
+	//Log("Please complete the function callbacks.handle_Hit (TASK 2) to handle the Hit message\n");
+	waitingForHIT = FALSE;
+
+	if(seq == lasthit) {
+			Log("Already received hit for this file.");
+				return;
+		}
+	g_source_remove(t_id);	// Cancel timer
+
 	Log(tmp_buf);
 
-	Log("Please complete the function callbacks.handle_Hit (TASK 2) to handle the Hit message\n");
+	lasthit = seq;
+
 	// TASK 2
 	//  Put here the code to handle the HIT message
 	// 	Don't forget to cancel the timer.
@@ -265,18 +284,27 @@ void on_togglebutton1_toggled(GtkToggleButton *togglebutton, gpointer user_data)
 	}
 
 }
-
+gboolean callback_QUERY_timer (gpointer data)
+{
+	waitingForHIT = FALSE;
+	Log("QUERY TIMED OUT!");
+	return FALSE; // cancels the timer
+}
 
 // Called when the user clicks "Query file"
 void on_buttonQuery_clicked (GtkButton *button, gpointer user_data)
 {
+
 	if (!active) {
 		Log("fileexchange is not active\n");
 		return;
 	}
 
 	const gchar *name;
-
+	if (waitingForHIT) {
+		Log("Still waiting for timeout!");
+		return;
+	}
 	// Read parameters
 	name= get_QueryFile();
 	if ((name == NULL) || (strlen(name) == 0)) {
@@ -320,7 +348,9 @@ void on_buttonQuery_clicked (GtkButton *button, gpointer user_data)
 		return;
 	}
 
-	Log("Please complete the function callbacks.on_buttonQuery_clicked (TASK 1) to handle the 'Query file' button\n");
+	// Log("Please complete the function callbacks.on_buttonQuery_clicked (TASK 1) to handle the 'Query file' button\n");
+
+
 	// TASK 1 - complete this function
 	//
 	//  After sending the Query, fileexchange must wait for an HIT for up to during 5 seconds and
@@ -334,7 +364,8 @@ void on_buttonQuery_clicked (GtkButton *button, gpointer user_data)
 	// Suggestion:
 	//	Read the tutorial (Introduction to the development of applications in Gnome 3):
 	//	- in section 2.2.2.6, an explanation on how to use timers;
-
+	waitingForHIT = TRUE;
+	t_id = g_timeout_add(QUERY_TIMEOUT, callback_QUERY_timer,NULL);
 }
 
 

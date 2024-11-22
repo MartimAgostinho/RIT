@@ -216,7 +216,7 @@ void *file_download_thread (void *ptr)
 	struct timeval tv1, tv2;
 	struct timezone tz;
 	long diff= 0, last_diff= 0;
-	int n;
+	int n,m;
 
 	//*********************************************************************************
 	//*      THREAD                                                                   *
@@ -239,26 +239,32 @@ void *file_download_thread (void *ptr)
       perror ("opening stream socket");
       exit (1);
     }
-	
-	server.sin6_family = AF_INET6;                
-	server.sin6_port = htons(pt->port);           
-	server.sin6_addr = pt->ip;                    
 
-	//struct sockaddr sok = 
+	server.sin6_family 		= AF_INET6;                
+	server.sin6_port 		= htons(pt->port)         
+	server.sin6_addr 		= pt->ip;
+	server.sin6_flowinfo 	= 0;
+      
+	
 	//Connect the socket to (pt->ip : pt->port)
-	if (connect(pt->s, (struct sockaddr *)&server, sizeof(server) ) < 0) {
-		  perror("RCV>error connecting the TCP socket to receive the file");
-		  fprintf(stderr, "%sconnection failed\n", pt->name_str);
-		  STOP_THREAD(pt);
+	if (connect(pt->s, (struct sockaddr *)&server, sizeof(server)  ) < 0) {
+		perror("RCV>error connecting the TCP socket to receive the file");
+		fprintf(stderr, "%sconnection failed\n", pt->name_str);
+		STOP_THREAD(pt);
 	}
 
-	// Set timeout for reading
-	// ...
+	//FIXME nao sei se sao estes os valores
+	timeout.tv_sec = 10; // 10 seconds
+	timeout.tv_usec = 0; // 0 microseconds
+
+	if (setsockopt (pt->s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt failed\n");
+	}
 
 	if (!pt->slow) {
 		Log("Does not optimize socket communication (TASK 6) ...\n");
 		// Optimize socket communication
-		// ...
+		sleep(5000);
 	}
 
 
@@ -273,8 +279,10 @@ void *file_download_thread (void *ptr)
 		STOP_THREAD(pt);
 	}
 	// Send the filename (pt->fname)
-	// ...
-
+	if (send(pt->s, pt->fname, slen , 0) < 0){
+		perror("Error to send filename");
+		STOP_THREAD(pt);
+	}
 
 	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	// Receive the reply header
@@ -283,34 +291,54 @@ void *file_download_thread (void *ptr)
 	unsigned long long len_f;
 
 	// Receive the file length and validate if the length is equal to the one received by UDP
-	// ...
+	
+	if ((recv(pt->s, &len_f, sizeof(len_f), 0)) < 0){
+		perror("Error at receiving the file");
+		STOP_THREAD(pt);
+	}
+	if( pt->flen != len_f){
+		perror("Error at receiving the file, Wrong Size");
+		STOP_THREAD(pt);
+	}
 
 	if (gettimeofday(&tv1, &tz))
 		Log("Error getting the time to start reception\n");
 
 	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	// Receive the file
-
 	// Open file
+	//float perc = 0;
+	pt->total = 0;
 	if ((pt->f= fopen(pt->ofilename, "w")) != NULL) {
 
 		// Receive the file
 		// Program receiving loop reading from pt->s to pt->f
 		// See the file copy example in the documentation (section 2.1.9) and adapt to a socket scenario ...
-		// do { // Loop forever until end of file
-		//	 	n= read(pt->s, buf, RCV_BUFLEN);
-		//		// write to file
-		//		// update pt->total with the total number of bytes received
-		// 		// update the % of number of bytes (percent) received using:
-		//			GUI_update_bytes_sent((unsigned)pt->tid, perc, TRUE);
-		//		// where perc is an integer between 0 and 100 (percentage of the file received)
-		//      ...
-		//	 	if (pt->slow)
-		//		    usleep(SLOW_SLEEPTIME);
-		//  } while (active && (n > 0) && ???? );
+
+		 do { // Loop forever until end of file
+			 	n = read(pt->s, buf, RCV_BUFLEN);
+				// write to file
+			 	if(n > 0){
+			 		if((m = fwrite(buf, 1, n, pt->f)) != n){
+			 			perror("Error trying yto write");
+			 			break;
+			 		}
+					pt->total += n;
+			 		// update pt->total with the total number of bytes received
+			 		//fazer o calculo dos bytes que ja foram escritos e q ainda estao por escrever
+			 		// update the % of number of bytes (percent) received using:
+					GUI_update_bytes_sent((unsigned)pt->tid, 100 * (pt->total/len_f), TRUE);
+					// where perc is an integer between 0 and 100 (percentage of the file received)
+
+				 	if (pt->slow){//FIXME 
+				 		usleep(SLOW_SLEEPTIME);
+				 	}
+
+			 	}
+		  } while (active && (n > 0) && pt->total < len_f);
 
 		// Close file  pt->f
-		// ...
+		fclose(pt->f);
 
 		if (gettimeofday(&tv2, &tz)) {
 			Log("Error getting the time to stop reception\n");
@@ -326,48 +354,6 @@ void *file_download_thread (void *ptr)
 
 	if (gettimeofday(&tv1, &tz))
 		Log("Error getting the time to start reception\n");
-
-	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	// Receive the file
-
-	// Open file
-	if ((pt->f= fopen(pt->ofilename, "w")) != NULL) {
-
-		// Receive the file
-		// Program receiving loop reading from pt->s to pt->f
-		//  Include the following sleep instruction in the loop:
-		//   if (pt->slow)
-		//   	usleep(SLOW_SLEEPTIME);
-		//  Update the % of number of bytes (percent) sent using
-		//      GUI_update_bytes_sent((unsigned)pt->tid, percent);
-
-		// See the file copy example in the documentation (section 2.1.9) and adapt to a socket scenario ...
-		// do { // Loop forever until end of file
-		//	 	n= read(pt->s, buf, SND_BUFLEN);
-		//		// write to file
-		//		// update pt->total with the total number of bytes received
-		// 		// update the % of number of bytes (percent) received using:
-		//			GUI_update_bytes_sent((unsigned)pt->tid, perc, TRUE);
-		//		// where perc is an integer between 0 and 100 (percentage of the file received)
-		//      ...
-		//	 	if (pt->slow)
-		//		    usleep(SLOW_SLEEPTIME);
-		//  } while (active && (n > 0) && ???? );
-
-		// Close file
-		// ...
-
-		if (gettimeofday(&tv2, &tz)) {
-			Log("Error getting the time to stop reception\n");
-			diff= 0;
-		} else
-			diff= (tv2.tv_sec-tv1.tv_sec)*1000000+(tv2.tv_usec-tv1.tv_usec);
-
-	} else {
-		perror("Error creating file for writing");
-		fprintf(stderr, "%sfailed to create file '%s' for writing\n", pt->name_str, pt->fname);
-		STOP_THREAD(pt);
-	}
 
 	sprintf(buf, "%sreceiving thread ended - read %lld of %lld bytes in %ld usec\n",
 			pt->name_str, pt->total, pt->flen, diff);
