@@ -197,16 +197,14 @@ void handle_Hit(char *buf, int buflen, struct in6_addr *ip, u_short port) {
 		return ;
 	}
 
+	waitingForHIT = FALSE;
 	sprintf(tmp_buf, "Received Hit '%s' (IP= %s; port= %hu; Len=%llu; Hash=%u)\n", fname,
 			addr_ipv6(&srvIP), sTCPport, flen, fhash);
 
-	//Log("Please complete the function callbacks.handle_Hit (TASK 2) to handle the Hit message\n");
-	waitingForHIT = FALSE;
-
 	if(seq == lasthit) {
-			Log("Already received hit for this file.");
-				return;
-		}
+		Log("Already received hit for this file.");
+		return;
+	}
 	g_source_remove(t_id);	// Cancel timer
 
 	Log(tmp_buf);
@@ -306,7 +304,7 @@ void on_buttonQuery_clicked (GtkButton *button, gpointer user_data)
 		return;
 	}
 	// Read parameters
-	name= get_QueryFile();
+	name = get_QueryFile();
 	if ((name == NULL) || (strlen(name) == 0)) {
 		Log("Empty file name is query\n");
 		return;

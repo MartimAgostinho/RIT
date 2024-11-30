@@ -43,9 +43,10 @@
 
 
 #define SLOW_SLEEPTIME	500000		// Sleep time between reads and writes in slow sending
-#define RCV_BUFLEN 		65536		// Buffer size used to receive data
+#define RCV_BUFLEN 		(65536*2)		// Buffer size used to receive data
 #define SND_BUFLEN 		65536		// Buffer size used to send data
 #define READ_TIMEOUT	60			// Read timeout - 60 seconds
+#define PERCSTEP		10			// Percentage Step  
 
 // List with active TCP connections/threads
 GList *tcp_conn = NULL;
@@ -241,8 +242,7 @@ void *file_download_thread (void *ptr)
     }
 
 	server.sin6_family 		= AF_INET6;                
-	server.sin6_port 		= htons(pt->port)         
-	server.sin6_addr 		= pt->ip;
+	server.sin6_port 		= htons(pt->port);       
 	server.sin6_flowinfo 	= 0;
       
 	
@@ -253,19 +253,18 @@ void *file_download_thread (void *ptr)
 		STOP_THREAD(pt);
 	}
 
-	//FIXME nao sei se sao estes os valores
-	timeout.tv_sec = 10; // 10 seconds
+	timeout.tv_sec = 0.01; // 10 seconds
 	timeout.tv_usec = 0; // 0 microseconds
 
 	if (setsockopt (pt->s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
 		perror("setsockopt failed\n");
 	}
 
-	if (!pt->slow) {
+	/*if (!pt->slow) {
 		Log("Does not optimize socket communication (TASK 6) ...\n");
 		// Optimize socket communication
-		sleep(5000);
-	}
+		usleep(SLOW_SLEEPTIME);
+	}*/
 
 
 	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -301,44 +300,51 @@ void *file_download_thread (void *ptr)
 		STOP_THREAD(pt);
 	}
 
+	int byteStep = len_f/PERCSTEP;
+	int perc = 0,auxperc;
+	pt->total = 0;
+
 	if (gettimeofday(&tv1, &tz))
 		Log("Error getting the time to start reception\n");
-
 	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	// Receive the file
 	// Open file
-	//float perc = 0;
-	pt->total = 0;
 	if ((pt->f= fopen(pt->ofilename, "w")) != NULL) {
 
 		// Receive the file
 		// Program receiving loop reading from pt->s to pt->f
 		// See the file copy example in the documentation (section 2.1.9) and adapt to a socket scenario ...
-
 		 do { // Loop forever until end of file
 			 	n = read(pt->s, buf, RCV_BUFLEN);
-				// write to file
+				// write tperc
 			 	if(n > 0){
 			 		if((m = fwrite(buf, 1, n, pt->f)) != n){
-			 			perror("Error trying yto write");
-			 			break;
+			 			perror("Error trying to write");
+			 			STOP_THREAD(pt);
 			 		}
-					pt->total += n;
 			 		// update pt->total with the total number of bytes received
-			 		//fazer o calculo dos bytes que ja foram escritos e q ainda estao por escrever
 			 		// update the % of number of bytes (percent) received using:
-					GUI_update_bytes_sent((unsigned)pt->tid, 100 * (pt->total/len_f), TRUE);
-					// where perc is an integer between 0 and 100 (percentage of the file received)
+					/*
+					pt->total 	+= n;
+					auxperc 	= perc;
+					perc 		= ((float) pt->total/len_f)*100;
 
-				 	if (pt->slow){//FIXME 
+					if(perc != auxperc && !(perc % PERCSTEP)){
+						GUI_update_bytes_sent((unsigned)pt->tid, perc, TRUE);
+					}*/
+
+					pt->total += n;
+					if( !(pt->total % byteStep) ){
+						perc 		= ((float) pt->total/len_f)*100;
+						GUI_update_bytes_sent((unsigned)pt->tid, perc, TRUE);
+					}
+
+				 	if (pt->slow){
 				 		usleep(SLOW_SLEEPTIME);
 				 	}
 
 			 	}
-		  } while (active && (n > 0) && pt->total < len_f);
-
-		// Close file  pt->f
-		fclose(pt->f);
+		  } while (active && pt->total < len_f);
 
 		if (gettimeofday(&tv2, &tz)) {
 			Log("Error getting the time to stop reception\n");
@@ -425,13 +431,13 @@ void *snd_file_thread (void *ptr)
 		perror ("Error defining a timeout for reading");
 		// Ignore error
 	}
-	if (!pt->slow) {
+	//if (!pt->slow) {
 		// TASK 6 - Optimize the TCP communication
 		// Don't forget to configure your socket to set buffers or other any configuration
 		// that maximizes throughput
 		//	e.g. SO_SNDBUF, SO_RECVBUF, timeout, etc.
 		// The two best groups will receive bonus points at the end.
-	}
+	//}
 
 	// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	// Read the request header

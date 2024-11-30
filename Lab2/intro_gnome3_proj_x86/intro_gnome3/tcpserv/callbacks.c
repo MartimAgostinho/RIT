@@ -137,7 +137,3 @@ on_window1_delete_event (GtkWidget * widget,
 	gtk_main_quit ();	// Finishes the application, terminating Gtk main loop
 	return FALSE;		// Must always return FALSE, otherwise it does not close the window
 }
-
-
-
-
